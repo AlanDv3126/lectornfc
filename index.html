@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <title>NFC Master - Lector y Escritor de Tags NFC</title>
+    <meta name="description" content="Lee y escribe etiquetas NFC directamente desde tu navegador. Optimizado para Samsung Z Flip 5.">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+            min-height: 100vh;
+            color: #1f2937;
+        }
+
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid #e5e7eb;
+            padding: 1rem;
+        }
+
+        .header-container {
+            max-width: 640px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .header-logo img {
+            width: 32px;
+            height: 32px;
+        }
+
+        .header-text h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #1f2937;
+        }
+
+        .header-text p {
+            font-size: 0.75rem;
+            color: #6b7280;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.375rem 0.75rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .badge.success {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .badge.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        main {
+            max-width: 640px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            gap: 0.75rem;
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+
+        .alert-icon {
+            flex-shrink: 0;
+            width: 1.25rem;
+            height: 1.25rem;
+            margin-top: 0.125rem;
+        }
+
+        .alert.error {
+            background: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #991b1b;
+        }
+
+        .alert.info {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            color: #1e40af;
+        }
+
+        .card {
+            background: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            transition: box-shadow 0.2s;
+        }
+
+        .card:hover {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .card-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 0.25rem;
+        }
+
+        .card-description {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .card-content {
+            padding: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #1e40af;
+            box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+        }
+
+        input:disabled, select:disabled {
+            background: #f9fafb;
+            color: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 0.375rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        button:active {
+            transform: scale(0.97);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: #1e40af;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #1e3a8a;
+        }
+
+        .btn-primary.scanning {
+            background: #f59e0b;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #059669;
+        }
+
+        .btn-success.writing {
+            background: #f59e0b;
+        }
+
+        .spinner {
+            width: 1rem;
+            height: 1rem;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .result-box {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.375rem;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .result-item {
+            background: white;
+            padding: 0.75rem;
+            border-radius: 0.375rem;
+            border: 1px solid #e5e7eb;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .result-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .result-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
+        }
+
+        .result-value {
+            color: #1f2937;
+            word-break: break-all;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+        }
+
+        .result-link {
+            color: #1e40af;
+            text-decoration: none;
+        }
+
+        .result-link:hover {
+            text-decoration: underline;
+        }
+
+        .history {
+            max-height: 256px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            padding: 0.5rem;
+            background: #f9fafb;
+            border-radius: 0.375rem;
+            border: 1px solid #e5e7eb;
+            margin-bottom: 0.5rem;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .history-item:hover {
+            background: #f3f4f6;
+        }
+
+        .history-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .history-id {
+            font-family: 'Courier New', monospace;
+            color: #6b7280;
+        }
+
+        .history-count {
+            color: #9ca3af;
+            font-size: 0.7rem;
+            margin-top: 0.25rem;
+        }
+
+        footer {
+            margin-top: 3rem;
+            padding: 1.5rem;
+            border-top: 1px solid #e5e7eb;
+            background: rgba(255, 255, 255, 0.5);
+            text-align: center;
+            font-size: 0.75rem;
+            color: #6b7280;
+        }
+
+        .toast-container {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1000;
+            max-width: 400px;
+        }
+
+        .toast {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .toast.error {
+            border-left: 4px solid #ef4444;
+            background: #fef2f2;
+        }
+
+        .toast.success {
+            border-left: 4px solid #10b981;
+            background: #f0fdf4;
+        }
+
+        .toast.info {
+            border-left: 4px solid #3b82f6;
+            background: #eff6ff;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @media (max-width: 640px) {
+            main {
+                padding: 1rem 0.75rem;
+            }
+
+            .card-header, .card-content {
+                padding: 1rem;
+            }
+
+            .toast-container {
+                left: 0.5rem;
+                right: 0.5rem;
+                max-width: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-container">
+            <div class="header-logo">
+                <div style="width: 32px; height: 32px; background: #1e40af; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">📡</div>
+                <div class="header-text">
+                    <h1>NFC Master</h1>
+                    <p>Samsung Z Flip 5 Edition</p>
+                </div>
+            </div>
+            <div class="badge" id="nfc-badge">
+                <span id="badge-text">Verificando...</span>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div id="alerts-container"></div>
+
+        <!-- Lectura de Tags -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">⚡ Lectura de Tags</div>
+                <div class="card-description">Escanea un tag NFC para ver su contenido</div>
+            </div>
+            <div class="card-content">
+                <button id="btn-read" class="btn-primary">Iniciar Escaneo</button>
+                <div id="read-output"></div>
+            </div>
+        </div>
+
+        <!-- Escritura de Tags -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">✍️ Escritura de Tags</div>
+                <div class="card-description">Escribe datos en un tag NFC virgen o regrabable</div>
+            </div>
+            <div class="card-content">
+                <div class="form-group">
+                    <label for="write-type">Tipo de Contenido</label>
+                    <select id="write-type">
+                        <option value="text">📝 Texto Plano</option>
+                        <option value="url">🔗 Enlace URL</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="write-content">Contenido</label>
+                    <input type="text" id="write-content" placeholder="Escribe aquí...">
+                </div>
+                <button id="btn-write" class="btn-success">Escribir en Tag</button>
+            </div>
+        </div>
+
+        <!-- Historial -->
+        <div class="card" id="history-card" style="display: none;">
+            <div class="card-header">
+                <div class="card-title">📋 Historial Reciente</div>
+            </div>
+            <div class="card-content">
+                <div class="history" id="history-list"></div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>NFC Master • Optimizado para Samsung Z Flip 5 • Requiere HTTPS y Chrome</p>
+    </footer>
+
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // Toast notifications
+        function showToast(message, type = 'info', description = '') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <strong>${message}</strong>
+                ${description ? `<div style="font-size: 0.875rem; margin-top: 0.25rem; opacity: 0.8;">${description}</div>` : ''}
+            `;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s ease-out reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // NFC Support Check
+        const nfcSupported = 'NDEFReader' in window;
+        const badge = document.getElementById('nfc-badge');
+        const badgeText = document.getElementById('badge-text');
+
+        if (nfcSupported) {
+            badge.className = 'badge success';
+            badgeText.textContent = '✓ NFC Listo';
+            
+            // Show help alert
+            const alertsContainer = document.getElementById('alerts-container');
+            alertsContainer.innerHTML = `
+                <div class="alert info">
+                    <svg class="alert-icon" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                    </svg>
+                    <div>
+                        <strong>Primeros pasos:</strong> Cuando hagas clic en "Iniciar Escaneo", Chrome te pedirá permiso para acceder a NFC. Haz clic en <strong>"Permitir"</strong> y luego acerca tu tag.
+                    </div>
+                </div>
+            `;
+        } else {
+            badge.className = 'badge error';
+            badgeText.textContent = '✗ No Soportado';
+            
+            const alertsContainer = document.getElementById('alerts-container');
+            alertsContainer.innerHTML = `
+                <div class="alert error">
+                    <svg class="alert-icon" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                    </svg>
+                    <div>
+                        Web NFC requiere Chrome en Android. Asegúrate de estar usando el navegador correcto.
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('btn-read').disabled = true;
+            document.getElementById('btn-write').disabled = true;
+        }
+
+        // History
+        let scanHistory = [];
+
+        function updateHistory() {
+            const historyCard = document.getElementById('history-card');
+            const historyList = document.getElementById('history-list');
+
+            if (scanHistory.length === 0) {
+                historyCard.style.display = 'none';
+                return;
+            }
+
+            historyCard.style.display = 'block';
+            historyList.innerHTML = scanHistory.map((item, idx) => `
+                <div class="history-item">
+                    <div class="history-id">${item.serialNumber}</div>
+                    <div class="history-count">${item.records.length} registro${item.records.length !== 1 ? 's' : ''}</div>
+                </div>
+            `).join('');
+        }
+
+        // Read NFC
+        document.getElementById('btn-read').addEventListener('click', async () => {
+            if (!nfcSupported) {
+                showToast('Error', 'error', 'NFC no disponible');
+                return;
+            }
+
+            try {
+                const btn = document.getElementById('btn-read');
+                btn.classList.add('scanning');
+                btn.innerHTML = '<div class="spinner"></div> Acerca tu tag...';
+                btn.disabled = true;
+
+                const reader = new NDEFReader();
+                await reader.scan();
+
+                showToast('Escaneo iniciado', 'info', 'Acerca tu tag NFC');
+
+                reader.onreading = ({ message, serialNumber }) => {
+                    const records = [];
+                    const decoder = new TextDecoder();
+
+                    for (const record of message.records) {
+                        try {
+                            if (record.recordType === 'text') {
+                                const text = decoder.decode(record.data);
+                                records.push({ type: 'text', data: text });
+                            } else if (record.recordType === 'url') {
+                                const url = decoder.decode(record.data);
+                                records.push({ type: 'url', data: url });
+                            } else {
+                                records.push({ type: 'unknown', data: `Datos binarios (${record.recordType})` });
+                            }
+                        } catch (e) {
+                            records.push({ type: 'unknown', data: 'Error al decodificar' });
+                        }
+                    }
+
+                    const result = { serialNumber, records, timestamp: new Date() };
+                    scanHistory.unshift(result);
+                    updateHistory();
+
+                    // Display result
+                    const output = document.getElementById('read-output');
+                    output.innerHTML = `
+                        <div class="result-box">
+                            <div class="result-item">
+                                <div class="result-label">ID del Tag</div>
+                                <div class="result-value">${serialNumber}</div>
+                            </div>
+                            ${records.map((r, idx) => `
+                                <div class="result-item">
+                                    <div class="result-label">${r.type === 'text' ? '📝 Texto' : r.type === 'url' ? '🔗 URL' : '📦 Datos'}</div>
+                                    <div class="result-value">
+                                        ${r.type === 'url' ? `<a href="${r.data}" target="_blank" class="result-link">${r.data}</a>` : r.data}
+                                    </div>
+                                </div>
+                            `).join('')}
+                            <div style="font-size: 0.75rem; color: #9ca3af; margin-top: 0.5rem;">
+                                ${result.timestamp.toLocaleTimeString()}
+                            </div>
+                        </div>
+                    `;
+
+                    showToast('Tag leído correctamente', 'success');
+                    btn.classList.remove('scanning');
+                    btn.innerHTML = 'Iniciar Escaneo';
+                    btn.disabled = false;
+                };
+
+                reader.onreadingerror = () => {
+                    showToast('Error al leer', 'error', 'Intenta de nuevo');
+                    btn.classList.remove('scanning');
+                    btn.innerHTML = 'Iniciar Escaneo';
+                    btn.disabled = false;
+                };
+            } catch (error) {
+                const btn = document.getElementById('btn-read');
+                btn.classList.remove('scanning');
+                btn.innerHTML = 'Iniciar Escaneo';
+                btn.disabled = false;
+
+                if (error.name === 'NotAllowedError') {
+                    showToast('Permiso denegado', 'error', 'Debes permitir que el navegador acceda a NFC');
+                } else if (error.name === 'SecurityError') {
+                    showToast('Error de seguridad', 'error', 'NFC solo funciona en HTTPS');
+                } else if (error.name === 'NotSupportedError') {
+                    showToast('No soportado', 'error', 'Tu navegador no soporta NFC');
+                } else {
+                    showToast('Error', 'error', error.message || 'Intenta de nuevo');
+                }
+            }
+        });
+
+        // Write NFC
+        document.getElementById('btn-write').addEventListener('click', async () => {
+            if (!nfcSupported) {
+                showToast('Error', 'error', 'NFC no disponible');
+                return;
+            }
+
+            const content = document.getElementById('write-content').value.trim();
+            const type = document.getElementById('write-type').value;
+
+            if (!content) {
+                showToast('Error', 'error', 'Ingresa contenido para escribir');
+                return;
+            }
+
+            try {
+                const btn = document.getElementById('btn-write');
+                btn.classList.add('writing');
+                btn.innerHTML = '<div class="spinner"></div> Acerca tu tag...';
+                btn.disabled = true;
+
+                const reader = new NDEFReader();
+                const record = { recordType: type, data: content };
+
+                await reader.write({ records: [record] });
+
+                showToast('¡Escritura exitosa!', 'success', `${type === 'url' ? 'URL' : 'Texto'} escrito en el tag`);
+                document.getElementById('write-content').value = '';
+
+                btn.classList.remove('writing');
+                btn.innerHTML = 'Escribir en Tag';
+                btn.disabled = false;
+            } catch (error) {
+                const btn = document.getElementById('btn-write');
+                btn.classList.remove('writing');
+                btn.innerHTML = 'Escribir en Tag';
+                btn.disabled = false;
+
+                if (error.name === 'NotAllowedError') {
+                    showToast('Permiso denegado', 'error', 'Debes permitir que el navegador acceda a NFC');
+                } else if (error.name === 'SecurityError') {
+                    showToast('Error de seguridad', 'error', 'NFC solo funciona en HTTPS');
+                } else if (error.name === 'NotSupportedError') {
+                    showToast('No soportado', 'error', 'Tu navegador no soporta NFC');
+                } else {
+                    showToast('Error', 'error', error.message || 'Intenta de nuevo');
+                }
+            }
+        });
+    </script>
+</body>
+</html>
