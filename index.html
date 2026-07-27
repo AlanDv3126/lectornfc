@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <title>NFC Master - Lector y Escritor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+            min-height: 100vh;
+            color: #1f2937;
+            padding: 1rem;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1e40af;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+        }
+
+        .status.ready {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+
+        .alert.info {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            color: #1e40af;
+        }
+
+        .alert.error {
+            background: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #991b1b;
+        }
+
+        .section {
+            background: white;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .section-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #1f2937;
+        }
+
+        .buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        button {
+            padding: 0.875rem;
+            border: none;
+            border-radius: 0.375rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            min-height: 44px;
+        }
+
+        button:active {
+            transform: scale(0.97);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: #1e40af;
+            color: white;
+            grid-column: span 2;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #1e3a8a;
+        }
+
+        .btn-primary.active {
+            background: #f59e0b;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #dc2626;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #059669;
+        }
+
+        .btn-success.active {
+            background: #f59e0b;
+        }
+
+        .spinner {
+            width: 1rem;
+            height: 1rem;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .result-box {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.375rem;
+            padding: 1rem;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .result-box.show {
+            display: block;
+        }
+
+        .result-item {
+            background: white;
+            padding: 0.75rem;
+            border-radius: 0.375rem;
+            border: 1px solid #e5e7eb;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .result-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .result-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
+        }
+
+        .result-value {
+            color: #1f2937;
+            word-break: break-all;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+        }
+
+        .result-link {
+            color: #1e40af;
+            text-decoration: none;
+        }
+
+        .result-link:hover {
+            text-decoration: underline;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #1e40af;
+            box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .capacity-info {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 0.375rem;
+            padding: 0.75rem;
+            font-size: 0.875rem;
+            color: #1e40af;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .capacity-info.show {
+            display: block;
+        }
+
+        .toast-container {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1000;
+            max-width: 400px;
+        }
+
+        .toast {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+            animation: slideIn 0.3s ease-out;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .toast.error {
+            border-left-color: #ef4444;
+            background: #fef2f2;
+        }
+
+        .toast.success {
+            border-left-color: #10b981;
+            background: #f0fdf4;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @media (max-width: 640px) {
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .buttons {
+                grid-template-columns: 1fr;
+            }
+
+            .btn-primary {
+                grid-column: span 1;
+            }
+
+            .toast-container {
+                left: 0.5rem;
+                right: 0.5rem;
+                max-width: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📡 NFC Master</h1>
+            <p class="subtitle">Samsung Z Flip 5</p>
+            <div class="status" id="status">Verificando...</div>
+        </header>
+
+        <div id="alerts-container"></div>
+
+        <!-- SCAN Section -->
+        <div class="section">
+            <div class="section-title">Lectura</div>
+            <div class="buttons">
+                <button class="btn-primary" id="btn-scan">SCAN</button>
+                <button class="btn-danger" id="btn-delete">DELETE</button>
+            </div>
+            <div class="result-box" id="read-output"></div>
+            <div class="capacity-info" id="capacity-info"></div>
+        </div>
+
+        <!-- WRITE Section -->
+        <div class="section">
+            <div class="section-title">Escritura</div>
+            <div class="form-group">
+                <label for="write-type">Tipo</label>
+                <select id="write-type">
+                    <option value="text">📝 Texto</option>
+                    <option value="url">🔗 URL</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="write-content">Contenido</label>
+                <textarea id="write-content" placeholder="Escribe aquí..."></textarea>
+            </div>
+            <button class="btn-success" id="btn-write">WRITE</button>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // Toast notifications
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s ease-out reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // NFC Support Check
+        const nfcSupported = 'NDEFReader' in window;
+        const status = document.getElementById('status');
+        const alertsContainer = document.getElementById('alerts-container');
+
+        if (nfcSupported) {
+            status.className = 'status ready';
+            status.textContent = '✓ NFC Listo';
+            
+            alertsContainer.innerHTML = `
+                <div class="alert info">
+                    <strong>Instrucciones:</strong> Presiona SCAN para leer, DELETE para borrar, o WRITE para escribir datos en el tag.
+                </div>
+            `;
+        } else {
+            status.className = 'status error';
+            status.textContent = '✗ No Soportado';
+            
+            alertsContainer.innerHTML = `
+                <div class="alert error">
+                    <strong>Error:</strong> Web NFC requiere Chrome en Android. Usa el navegador correcto.
+                </div>
+            `;
+
+            document.getElementById('btn-scan').disabled = true;
+            document.getElementById('btn-delete').disabled = true;
+            document.getElementById('btn-write').disabled = true;
+        }
+
+        // SCAN Function
+        document.getElementById('btn-scan').addEventListener('click', async () => {
+            if (!nfcSupported) return;
+
+            try {
+                const btn = document.getElementById('btn-scan');
+                btn.classList.add('active');
+                btn.innerHTML = '<div class="spinner"></div> Acerca el tag...';
+                btn.disabled = true;
+
+                const reader = new NDEFReader();
+                await reader.scan();
+
+                showToast('Escaneo iniciado', 'info');
+
+                reader.onreading = ({ message, serialNumber }) => {
+                    const records = [];
+                    const decoder = new TextDecoder();
+                    let totalSize = 0;
+
+                    for (const record of message.records) {
+                        try {
+                            if (record.recordType === 'text') {
+                                const text = decoder.decode(record.data);
+                                records.push({ type: 'text', data: text });
+                                totalSize += record.data.byteLength;
+                            } else if (record.recordType === 'url') {
+                                const url = decoder.decode(record.data);
+                                records.push({ type: 'url', data: url });
+                                totalSize += record.data.byteLength;
+                            } else {
+                                records.push({ type: 'unknown', data: `Datos binarios` });
+                                totalSize += record.data.byteLength;
+                            }
+                        } catch (e) {
+                            records.push({ type: 'unknown', data: 'Error al decodificar' });
+                        }
+                    }
+
+                    // Display result
+                    const output = document.getElementById('read-output');
+                    output.classList.add('show');
+                    output.innerHTML = `
+                        <div class="result-item">
+                            <div class="result-label">ID del Tag</div>
+                            <div class="result-value">${serialNumber}</div>
+                        </div>
+                        ${records.length === 0 ? '<div class="result-item"><div class="result-label">Estado</div><div class="result-value">Tag vacío</div></div>' : ''}
+                        ${records.map((r, idx) => `
+                            <div class="result-item">
+                                <div class="result-label">${r.type === 'text' ? '📝 Texto' : r.type === 'url' ? '🔗 URL' : '📦 Datos'}</div>
+                                <div class="result-value">
+                                    ${r.type === 'url' ? `<a href="${r.data}" target="_blank" class="result-link">${r.data}</a>` : r.data}
+                                </div>
+                            </div>
+                        `).join('')}
+                        <div class="result-item">
+                            <div class="result-label">Datos Leídos</div>
+                            <div class="result-value">${totalSize} bytes</div>
+                        </div>
+                    `;
+
+                    // Show capacity info
+                    const capacityInfo = document.getElementById('capacity-info');
+                    capacityInfo.classList.add('show');
+                    const estimatedCapacity = 888; // NDEF Type 2 típico
+                    const available = Math.max(0, estimatedCapacity - totalSize);
+                    capacityInfo.innerHTML = `
+                        <strong>Capacidad del Tag:</strong><br>
+                        Total: ${estimatedCapacity} bytes (${(estimatedCapacity / 1024).toFixed(2)} KB)<br>
+                        Usado: ${totalSize} bytes<br>
+                        Disponible: ${available} bytes
+                    `;
+
+                    showToast('Tag leído correctamente', 'success');
+                    btn.classList.remove('active');
+                    btn.innerHTML = 'SCAN';
+                    btn.disabled = false;
+                };
+
+                reader.onreadingerror = () => {
+                    showToast('Error al leer el tag', 'error');
+                    btn.classList.remove('active');
+                    btn.innerHTML = 'SCAN';
+                    btn.disabled = false;
+                };
+            } catch (error) {
+                const btn = document.getElementById('btn-scan');
+                btn.classList.remove('active');
+                btn.innerHTML = 'SCAN';
+                btn.disabled = false;
+
+                if (error.name === 'NotAllowedError') {
+                    showToast('Permiso denegado. Intenta de nuevo.', 'error');
+                } else if (error.name === 'SecurityError') {
+                    showToast('Error de seguridad. Necesita HTTPS.', 'error');
+                } else {
+                    showToast('Error: ' + error.message, 'error');
+                }
+            }
+        });
+
+        // DELETE Function
+        document.getElementById('btn-delete').addEventListener('click', async () => {
+            if (!nfcSupported) return;
+
+            try {
+                const btn = document.getElementById('btn-delete');
+                btn.classList.add('active');
+                btn.innerHTML = '<div class="spinner"></div> Acerca el tag...';
+                btn.disabled = true;
+
+                const reader = new NDEFReader();
+                
+                // Escribir registro vacío para borrar
+                await reader.write({ records: [] });
+
+                showToast('Tag borrado correctamente', 'success');
+                document.getElementById('read-output').classList.remove('show');
+                document.getElementById('capacity-info').classList.remove('show');
+
+                btn.classList.remove('active');
+                btn.innerHTML = 'DELETE';
+                btn.disabled = false;
+            } catch (error) {
+                const btn = document.getElementById('btn-delete');
+                btn.classList.remove('active');
+                btn.innerHTML = 'DELETE';
+                btn.disabled = false;
+
+                if (error.name === 'NotAllowedError') {
+                    showToast('Permiso denegado. Intenta de nuevo.', 'error');
+                } else if (error.name === 'SecurityError') {
+                    showToast('Error de seguridad. Necesita HTTPS.', 'error');
+                } else {
+                    showToast('Error: ' + error.message, 'error');
+                }
+            }
+        });
+
+        // WRITE Function
+        document.getElementById('btn-write').addEventListener('click', async () => {
+            if (!nfcSupported) return;
+
+            const content = document.getElementById('write-content').value.trim();
+            const type = document.getElementById('write-type').value;
+
+            if (!content) {
+                showToast('Ingresa contenido para escribir', 'error');
+                return;
+            }
+
+            try {
+                const btn = document.getElementById('btn-write');
+                btn.classList.add('active');
+                btn.innerHTML = '<div class="spinner"></div> Acerca el tag...';
+                btn.disabled = true;
+
+                const reader = new NDEFReader();
+                const record = { recordType: type, data: content };
+
+                await reader.write({ records: [record] });
+
+                showToast('Datos escritos correctamente', 'success');
+                document.getElementById('write-content').value = '';
+
+                btn.classList.remove('active');
+                btn.innerHTML = 'WRITE';
+                btn.disabled = false;
+            } catch (error) {
+                const btn = document.getElementById('btn-write');
+                btn.classList.remove('active');
+                btn.innerHTML = 'WRITE';
+                btn.disabled = false;
+
+                if (error.name === 'NotAllowedError') {
+                    showToast('Permiso denegado. Intenta de nuevo.', 'error');
+                } else if (error.name === 'SecurityError') {
+                    showToast('Error de seguridad. Necesita HTTPS.', 'error');
+                } else {
+                    showToast('Error: ' + error.message, 'error');
+                }
+            }
+        });
+    </script>
+</body>
+</html>
