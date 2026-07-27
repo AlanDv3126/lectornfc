@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#050505" />
+  <title>NFCbyKhal — Terminal</title>
+  <style>
+    /* ===== RESET & BASE ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --red:        #e01010;
+      --red-bright: #ff2828;
+      --red-dim:    #6b0000;
+      --red-glow:   rgba(224,16,16,0.5);
+      --grey:       #222;
+      --grey-mid:   #444;
+      --grey-light: #888;
+      --black:      #050505;
+      --white-dim:  #ccc;
+      --green:      #00ff88;
+      --yellow:     #ffc800;
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: var(--black);
+      color: var(--white-dim);
+      font-family: 'Courier New', Courier, monospace;
+      overflow-x: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Scanlines */
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px);
+      pointer-events: none; z-index: 9999;
+    }
+
+    /* HUD Lines */
+    .hud-line { position: fixed; background: var(--red-dim); opacity: 0.2; z-index: 100; }
+    .hud-h { height: 1px; width: 100%; left: 0; }
+    .hud-v { width: 1px; height: 100%; top: 0; }
+    #hl-top    { top: 12px; }
+    #hl-bottom { bottom: 12px; }
+    #hl-left   { left: 12px; }
+    #hl-right  { right: 12px; }
+
+    /* ===== LAYOUT ===== */
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+      position: relative;
+    }
+
+    .title {
+      font-size: 1.8rem;
+      font-weight: bold;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--red-bright);
+      text-shadow: 0 0 12px var(--red-glow);
+      margin-bottom: 5px;
+    }
+
+    .subtitle {
+      font-size: 0.7rem;
+      letter-spacing: 0.3em;
+      color: var(--grey-light);
+      text-transform: uppercase;
+    }
+
+    /* ===== CARDS ===== */
+    .card {
+      background: #0d0d0d;
+      border: 1px solid var(--grey);
+      padding: 24px;
+      margin-bottom: 24px;
+      position: relative;
+    }
+
+    .card-title {
+      font-size: 0.85rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--red-bright);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .card-title::before { content: '■'; font-size: 0.6rem; }
+
+    /* Corner brackets for cards */
+    .c { position: absolute; width: 12px; height: 12px; border-color: var(--red-dim); border-style: solid; }
+    .c-tl { top: -1px; left: -1px; border-width: 1px 0 0 1px; }
+    .c-tr { top: -1px; right: -1px; border-width: 1px 1px 0 0; }
+    .c-bl { bottom: -1px; left: -1px; border-width: 0 0 1px 1px; }
+    .c-br { bottom: -1px; right: -1px; border-width: 0 1px 1px 0; }
+
+    /* ===== INPUTS & BUTTONS ===== */
+    .input-area {
+      width: 100%;
+      background: #111;
+      border: 1px solid var(--grey-mid);
+      color: var(--white-dim);
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 0.9rem;
+      padding: 12px;
+      margin-bottom: 15px;
+      outline: none;
+      resize: vertical;
+      min-height: 80px;
+      transition: border-color 0.3s;
+    }
+    .input-area:focus { border-color: var(--red); box-shadow: 0 0 8px var(--red-glow); }
+
+    .btn {
+      width: 100%;
+      background: transparent;
+      border: 1px solid var(--red);
+      color: var(--red-bright);
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 0.85rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      padding: 14px;
+      cursor: pointer;
+      transition: all 0.3s;
+      position: relative;
+      overflow: hidden;
+      z-index: 1;
+    }
+    .btn::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: var(--red);
+      transform: scaleX(0); transform-origin: left;
+      transition: transform 0.3s; z-index: -1;
+    }
+    .btn:hover::after, .btn:active::after { transform: scaleX(1); }
+    .btn:hover, .btn:active { color: #fff; box-shadow: 0 0 15px var(--red-glow); }
+
+    /* ===== DATA DISPLAY ===== */
+    .data-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-top: 10px;
+    }
+    .data-item {
+      background: #111;
+      padding: 10px;
+      border: 1px solid #1a1a1a;
+    }
+    .label {
+      font-size: 0.6rem;
+      color: var(--grey-light);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 4px;
+    }
+    .val {
+      font-size: 0.8rem;
+      color: var(--white-dim);
+      word-break: break-all;
+    }
+    .val.highlight { color: var(--yellow); }
+
+    .raw-data {
+      margin-top: 15px;
+      background: #050505;
+      border: 1px solid #1a1a1a;
+      padding: 12px;
+      font-size: 0.75rem;
+      line-height: 1.4;
+      max-height: 200px;
+      overflow-y: auto;
+      color: var(--grey-light);
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    /* ===== STATUS ===== */
+    .status-box {
+      margin-top: auto;
+      padding: 15px;
+      border-top: 1px solid var(--grey);
+      text-align: center;
+      font-size: 0.75rem;
+      letter-spacing: 0.1em;
+      min-height: 50px;
+    }
+    .status-box.scan { color: var(--yellow); animation: pulse 1s infinite; }
+    .status-box.err  { color: var(--red-bright); text-shadow: 0 0 8px var(--red-glow); }
+    .status-box.ok   { color: var(--green); text-shadow: 0 0 8px rgba(0,255,136,0.4); }
+
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    /* NFC Warning */
+    #nfc-warning {
+      background: rgba(255, 200, 0, 0.1);
+      border: 1px solid var(--yellow);
+      color: var(--yellow);
+      padding: 12px;
+      font-size: 0.7rem;
+      margin-bottom: 20px;
+      display: none;
+      text-align: center;
+      letter-spacing: 0.05em;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: var(--black); }
+    ::-webkit-scrollbar-thumb { background: var(--grey-mid); }
+  </style>
+</head>
+<body>
+
+  <div class="hud-line hud-h" id="hl-top"></div>
+  <div class="hud-line hud-h" id="hl-bottom"></div>
+  <div class="hud-line hud-v" id="hl-left"></div>
+  <div class="hud-line hud-v" id="hl-right"></div>
+
+  <div class="container">
+    <header>
+      <h1 class="title">NFCbyKhal</h1>
+      <p class="subtitle">Secure Tag Terminal v1.0</p>
+    </header>
+
+    <div id="nfc-warning">
+      SYSTEM ALERT: Web NFC not supported or disabled. <br>
+      Please use Chrome on Android with NFC hardware active.
+    </div>
+
+    <!-- SCAN SECTION -->
+    <div class="card">
+      <div class="c c-tl"></div><div class="c c-tr"></div>
+      <div class="c c-bl"></div><div class="c c-br"></div>
+      <h2 class="card-title">1. Scanner</h2>
+      <button class="btn" onclick="scanTag()">Execute Scan</button>
+      
+      <div id="scan-results" style="display: none;">
+        <div class="data-grid">
+          <div class="data-item">
+            <div class="label">Serial Number</div>
+            <div class="val" id="res-serial">-</div>
+          </div>
+          <div class="data-item">
+            <div class="label">Tag Type</div>
+            <div class="val" id="res-type">-</div>
+          </div>
+          <div class="data-item">
+            <div class="label">Used Space</div>
+            <div class="val highlight" id="res-used">0 B</div>
+          </div>
+          <div class="data-item">
+            <div class="label">Max Capacity</div>
+            <div class="val" id="res-max">Unknown</div>
+          </div>
+        </div>
+        <div class="label" style="margin-top:15px;">Payload Content</div>
+        <div class="raw-data" id="res-content">No data read.</div>
+      </div>
+    </div>
+
+    <!-- WRITE SECTION -->
+    <div class="card">
+      <div class="c c-tl"></div><div class="c c-tr"></div>
+      <div class="c c-bl"></div><div class="c c-br"></div>
+      <h2 class="card-title">2. Writer</h2>
+      <p class="label" style="margin-bottom:10px;">New Payload Data</p>
+      <textarea class="input-area" id="write-input" placeholder="Enter text or key content here..."></textarea>
+      <button class="btn" onclick="writeTag()">Write to Tag</button>
+    </div>
+
+    <div class="status-box" id="status-line">TERMINAL READY. AWAITING COMMAND.</div>
+  </div>
+
+  <script>
+    const statusEl = document.getElementById('status-line');
+    const nfcSupported = 'NDEFReader' in window;
+
+    window.addEventListener('load', () => {
+      if (!nfcSupported) {
+        document.getElementById('nfc-warning').style.display = 'block';
+        updateStatus('NFC API UNAVAILABLE', 'err');
+      }
+    });
+
+    function updateStatus(msg, cls) {
+      statusEl.textContent = msg;
+      statusEl.className = 'status-box' + (cls ? ' ' + cls : '');
+    }
+
+    async function scanTag() {
+      if (!nfcSupported) return updateStatus('ERROR: NFC NOT SUPPORTED', 'err');
+      
+      updateStatus('WAITING 4 TAG...', 'scan');
+      document.getElementById('scan-results').style.display = 'none';
+
+      try {
+        const ndef = new NDEFReader();
+        await ndef.scan();
+
+        ndef.addEventListener("reading", ({ message, serialNumber }) => {
+          updateStatus('TAG READ SUCCESSFUL', 'ok');
+          
+          document.getElementById('scan-results').style.display = 'block';
+          document.getElementById('res-serial').textContent = serialNumber || 'N/A';
+          
+          let fullText = '';
+          let totalBytes = 0;
+
+          for (const record of message.records) {
+            totalBytes += record.data.byteLength;
+            try {
+              if (record.recordType === "text") {
+                const decoder = new TextDecoder(record.encoding || 'utf-8');
+                fullText += decoder.decode(record.data);
+              } else {
+                fullText += `[${record.recordType} record] `;
+              }
+            } catch (e) {
+              fullText += '[Binary data] ';
+            }
+          }
+
+          document.getElementById('res-content').textContent = fullText || '[Empty]';
+          document.getElementById('res-used').textContent = formatBytes(totalBytes);
+          
+          // Note: Max capacity is hard to get via Web NFC API directly 
+          // as it doesn't expose the hardware limit easily.
+          document.getElementById('res-max').textContent = 'Dynamic';
+          document.getElementById('res-type').textContent = 'NDEF Compatible';
+        });
+
+        ndef.addEventListener("readingerror", () => {
+          updateStatus('READ ERROR: UNABLE TO ACCESS TAG', 'err');
+        });
+
+      } catch (err) {
+        handleError(err);
+      }
+    }
+
+    async function writeTag() {
+      if (!nfcSupported) return updateStatus('ERROR: NFC NOT SUPPORTED', 'err');
+      
+      const content = document.getElementById('write-input').value;
+      if (!content) return updateStatus('ERROR: NO CONTENT TO WRITE', 'err');
+
+      updateStatus('WAITING 4 TAG...', 'scan');
+
+      try {
+        const ndef = new NDEFReader();
+        // Web NFC requires a scan to be active before writing in some browsers
+        // but write() itself triggers the prompt.
+        await ndef.write(content);
+        
+        updateStatus('WRITE COMPLETE: TAG UPDATED', 'ok');
+        // Clear input after success
+        document.getElementById('write-input').value = '';
+        
+      } catch (err) {
+        handleError(err);
+      }
+    }
+
+    function handleError(err) {
+      if (err.name === 'NotAllowedError') {
+        updateStatus('PERMISSION DENIED', 'err');
+      } else if (err.name === 'NotSupportedError') {
+        updateStatus('HARDWARE NOT SUPPORTED', 'err');
+      } else {
+        updateStatus('ERROR: ' + err.message, 'err');
+      }
+      console.error(err);
+    }
+
+    function formatBytes(bytes, decimals = 2) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const dm = decimals < 0 ? 0 : decimals;
+      const sizes = ['Bytes', 'KB', 'MB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+  </script>
+</body>
+</html>
