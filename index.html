@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <title>NFC Master - Pro Edition</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0e27;
+            min-height: 100vh;
+            color: #fff;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Animated background */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 20% 50%, rgba(30, 64, 175, 0.1) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 80%, rgba(6, 182, 212, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 1.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* 3D Canvas */
+        #canvas-container {
+            width: 100%;
+            height: 300px;
+            margin-bottom: 2rem;
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: 0 0 60px rgba(30, 64, 175, 0.3), 0 0 100px rgba(6, 182, 212, 0.2);
+            border: 1px solid rgba(30, 64, 175, 0.3);
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(20, 30, 48, 0.8) 100%);
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #1e40af 0%, #06b6d4 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 0 30px rgba(30, 64, 175, 0.3);
+            letter-spacing: -1px;
+        }
+
+        .subtitle {
+            font-size: 0.875rem;
+            color: #94a3b8;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 0.5rem 1.5rem;
+            border-radius: 50px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-top: 1rem;
+            border: 1px solid;
+            animation: pulse-border 2s ease-in-out infinite;
+        }
+
+        .status.ready {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+            border-color: #10b981;
+        }
+
+        .status.error {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            border-color: #ef4444;
+        }
+
+        @keyframes pulse-border {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            50% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 0.75rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.875rem;
+            line-height: 1.6;
+            border-left: 4px solid;
+            backdrop-filter: blur(10px);
+            animation: slideDown 0.5s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .alert.info {
+            background: rgba(30, 64, 175, 0.15);
+            border-color: #1e40af;
+            color: #93c5fd;
+        }
+
+        .alert.error {
+            background: rgba(239, 68, 68, 0.15);
+            border-color: #ef4444;
+            color: #fca5a5;
+        }
+
+        .section {
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.6) 0%, rgba(20, 30, 48, 0.6) 100%);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(30, 64, 175, 0.2);
+            backdrop-filter: blur(10px);
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: #fff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            padding-bottom: 0.75rem;
+        }
+
+        .section-title::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 40px;
+            height: 3px;
+            background: linear-gradient(90deg, #1e40af, #06b6d4);
+            border-radius: 2px;
+        }
+
+        .buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        button {
+            padding: 1rem;
+            border: none;
+            border-radius: 0.75rem;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.2);
+            transition: left 0.5s ease;
+            z-index: 0;
+        }
+
+        button:hover::before {
+            left: 100%;
+        }
+
+        button > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+            color: white;
+            grid-column: span 2;
+            box-shadow: 0 0 20px rgba(30, 64, 175, 0.4);
+            border: 1px solid rgba(30, 64, 175, 0.5);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            box-shadow: 0 0 40px rgba(30, 64, 175, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .btn-primary.active {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            box-shadow: 0 0 40px rgba(245, 158, 11, 0.6);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+            border: 1px solid rgba(16, 185, 129, 0.5);
+        }
+
+        .btn-success:hover:not(:disabled) {
+            box-shadow: 0 0 40px rgba(16, 185, 129, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .btn-success.active {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            box-shadow: 0 0 40px rgba(245, 158, 11, 0.6);
+        }
+
+        .spinner {
+            width: 1.2rem;
+            height: 1.2rem;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #cbd5e1;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 0.875rem;
+            border: 1px solid rgba(30, 64, 175, 0.3);
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-family: inherit;
+            background: rgba(15, 23, 42, 0.5);
+            color: #fff;
+            transition: all 0.3s;
+            backdrop-filter: blur(5px);
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #1e40af;
+            box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.2), inset 0 0 10px rgba(30, 64, 175, 0.1);
+            background: rgba(15, 23, 42, 0.7);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .result-box {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+            display: none;
+            animation: popIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .result-box.show {
+            display: block;
+        }
+
+        @keyframes popIn {
+            0% {
+                opacity: 0;
+                transform: scale(0.8) rotateX(10deg);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1) rotateX(0);
+            }
+        }
+
+        .result-item {
+            background: rgba(15, 23, 42, 0.8);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border-left: 3px solid #06b6d4;
+            margin-bottom: 0.75rem;
+            font-size: 0.875rem;
+            animation: slideInLeft 0.4s ease-out;
+        }
+
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .result-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .result-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #06b6d4;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+        }
+
+        .result-value {
+            color: #e2e8f0;
+            word-break: break-all;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+
+        .result-link {
+            color: #60a5fa;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .result-link:hover {
+            color: #93c5fd;
+            text-decoration: underline;
+        }
+
+        .capacity-info {
+            background: linear-gradient(135deg, rgba(30, 64, 175, 0.15) 0%, rgba(6, 182, 212, 0.15) 100%);
+            border: 1px solid rgba(30, 64, 175, 0.3);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            font-size: 0.875rem;
+            color: #93c5fd;
+            margin-top: 1rem;
+            display: none;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        .capacity-info.show {
+            display: block;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .toast-container {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1000;
+            max-width: 400px;
+        }
+
+        .toast {
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(20, 30, 48, 0.95) 100%);
+            border: 1px solid;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 0 0 30px rgba(30, 64, 175, 0.3);
+            animation: slideInRight 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border-left: 4px solid #3b82f6;
+            backdrop-filter: blur(10px);
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(400px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .toast.error {
+            border-left-color: #ef4444;
+        }
+
+        .toast.success {
+            border-left-color: #10b981;
+        }
+
+        @media (max-width: 640px) {
+            h1 {
+                font-size: 2rem;
+            }
+
+            .buttons {
+                grid-template-columns: 1fr;
+            }
+
+            .btn-primary {
+                grid-column: span 1;
+            }
+
+            #canvas-container {
+                height: 250px;
+            }
+
+            .toast-container {
+                left: 0.5rem;
+                right: 0.5rem;
+                max-width: none;
+            }
+        }
+
+        /* Glow effect */
+        .glow {
+            animation: glow 2s ease-in-out infinite;
+        }
+
+        @keyframes glow {
+            0%, 100% {
+                box-shadow: 0 0 20px rgba(30, 64, 175, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 40px rgba(30, 64, 175, 0.8);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-animation"></div>
+
+    <div class="container">
+        <header>
+            <h1>NFC MASTER</h1>
+            <p class="subtitle">Pro Edition</p>
+            <div class="status" id="status">Verificando...</div>
+        </header>
+
+        <div id="canvas-container"></div>
+
+        <div id="alerts-container"></div>
+
+        <!-- SCAN Section -->
+        <div class="section">
+            <div class="section-title">Lectura</div>
+            <button class="btn-primary" id="btn-scan">
+                <span>📡 SCAN</span>
+            </button>
+            <div class="result-box" id="read-output"></div>
+            <div class="capacity-info" id="capacity-info"></div>
+        </div>
+
+        <!-- WRITE Section -->
+        <div class="section">
+            <div class="section-title">Escritura</div>
+            <div class="form-group">
+                <label for="write-type">Tipo</label>
+                <select id="write-type">
+                    <option value="text">📝 Texto</option>
+                    <option value="url">🔗 URL</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="write-content">Contenido</label>
+                <textarea id="write-content" placeholder="Escribe aquí..."></textarea>
+            </div>
+            <button class="btn-success" id="btn-write">
+                <span>✨ WRITE</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // Toast notifications
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<strong>${message}</strong>`;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideInRight 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) reverse';
+                setTimeout(() => toast.remove(), 400);
+            }, 4000);
+        }
+
+        // Three.js 3D NFC Tag
+        let scene, camera, renderer, tag;
+
+        function initThreeJS() {
+            const container = document.getElementById('canvas-container');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0f172a);
+
+            camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+            camera.position.z = 3;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const pointLight = new THREE.PointLight(0xffffff, 1);
+            pointLight.position.set(5, 5, 5);
+            scene.add(pointLight);
+
+            const pointLight2 = new THREE.PointLight(0x06b6d4, 0.5);
+            pointLight2.position.set(-5, -5, 5);
+            scene.add(pointLight2);
+
+            // Create NFC Tag (3D Box)
+            const geometry = new THREE.BoxGeometry(1.5, 2.2, 0.1);
+            const material = new THREE.MeshStandardMaterial({
+                color: 0xfbbf24,
+                metalness: 0.8,
+                roughness: 0.2,
+                emissive: 0xf59e0b,
+                emissiveIntensity: 0.3
+            });
+            tag = new THREE.Mesh(geometry, material);
+            scene.add(tag);
+
+            // Add glow effect
+            const glowGeometry = new THREE.BoxGeometry(1.6, 2.3, 0.15);
+            const glowMaterial = new THREE.MeshBasicMaterial({
+                color: 0xf59e0b,
+                transparent: true,
+                opacity: 0.1
+            });
+            const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+            tag.add(glow);
+
+            // Animation loop
+            function animate() {
+                requestAnimationFrame(animate);
+                tag.rotation.y += 0.008;
+                tag.rotation.x += 0.002;
+                renderer.render(scene, camera);
+            }
+            animate();
+
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                const newWidth = container.clientWidth;
+                const newHeight = container.clientHeight;
+                camera.aspect = newWidth / newHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(newWidth, newHeight);
+            });
+        }
+
+        // Initialize 3D scene
+        setTimeout(initThreeJS, 100);
+
+        // NFC Support Check
+        const nfcSupported = 'NDEFReader' in window;
+        const status = document.getElementById('status');
+        const alertsContainer = document.getElementById('alerts-container');
+
+        if (nfcSupported) {
+            status.className = 'status ready';
+            status.textContent = '✓ NFC READY';
+            
+            alertsContainer.innerHTML = `
+                <div class="alert info">
+                    <strong>🎯 Listo para usar:</strong> Presiona SCAN para leer o WRITE para escribir datos en el tag.
+                </div>
+            `;
+        } else {
+            status.className = 'status error';
+            status.textContent = '✗ NO SOPORTADO';
+            
+            alertsContainer.innerHTML = `
+                <div class="alert error">
+                    <strong>⚠️ Error:</strong> Web NFC requiere Chrome en Android. Usa el navegador correcto.
+                </div>
+            `;
+
+            document.getElementById('btn-scan').disabled = true;
+            document.getElementById('btn-write').disabled = true;
+        }
+
+        // SCAN Function
+        document.getElementById('btn-scan').addEventListener('click', async () => {
+            if (!nfcSupported) return;
+
+            try {
+                const btn = document.getElementById('btn-scan');
+                btn.classList.add('active');
+                btn.innerHTML = '<div class="spinner"></div> Acerca el tag...';
+                btn.disabled = true;
+
+                // Animate tag
+                if (tag) {
+                    tag.rotation.x += Math.PI * 2;
+                }
+
+                const reader = new NDEFReader();
+                await reader.scan();
+
+                showToast('🔍 Escaneo iniciado', 'info');
+
+                reader.onreading = ({ message, serialNumber }) => {
+                    const records = [];
+                    const decoder = new TextDecoder();
+                    let totalSize = 0;
+
+                    for (const record of message.records) {
+                        try {
+                            if (record.recordType === 'text') {
+                                const text = decoder.decode(record.data);
+                                records.push({ type: 'text', data: text });
+                                totalSize += record.data.byteLength;
+                            } else if (record.recordType === 'url') {
+                                const url = decoder.decode(record.data);
+                                records.push({ type: 'url', data: url });
+                                totalSize += record.data.byteLength;
+                            }
+                        } catch (e) {
+                            records.push({ type: 'unknown', data: 'Error al decodificar' });
+                        }
+                    }
+
+                    // Display result with animation
+                    const output = document.getElementById('read-output');
+                    output.classList.add('show');
+                    output.innerHTML = `
+                        <div class="result-item">
+                            <div class="result-label">📍 ID del Tag</div>
+                            <div class="result-value">${serialNumber}</div>
+                        </div>
+                        ${records.length === 0 ? '<div class="result-item"><div class="result-label">⚪ Estado</div><div class="result-value">Tag vacío</div></div>' : ''}
+                        ${records.map((r, idx) => `
+                            <div class="result-item" style="animation-delay: ${idx * 0.1}s">
+                                <div class="result-label">${r.type === 'text' ? '📝 Texto' : r.type === 'url' ? '🔗 URL' : '📦 Datos'}</div>
+                                <div class="result-value">
+                                    ${r.type === 'url' ? `<a href="${r.data}" target="_blank" class="result-link">${r.data}</a>` : r.data}
+                                </div>
+                            </div>
+                        `).join('')}
+                        <div class="result-item" style="animation-delay: ${records.length * 0.1}s; border-left-color: #10b981;">
+                            <div class="result-label">💾 Datos Leídos</div>
+                            <div class="result-value">${totalSize} bytes</div>
+                        </div>
+                    `;
+
+                    // Show capacity info
+                    const capacityInfo = document.getElementById('capacity-info');
+                    capacityInfo.classList.add('show');
+                    const estimatedCapacity = 888;
+                    const available = Math.max(0, estimatedCapacity - totalSize);
+                    capacityInfo.innerHTML = `
+                        <strong>💾 Capacidad del Tag:</strong><br>
+                        Total: ${estimatedCapacity} bytes (${(estimatedCapacity / 1024).toFixed(2)} KB)<br>
+                        Usado: ${totalSize} bytes<br>
+                        Disponible: ${available} bytes
+                    `;
+
+                    showToast('✅ Tag leído correctamente', 'success');
+                    btn.classList.remove('active');
+                    btn.innerHTML = '<span>📡 SCAN</span>';
+                    btn.disabled = false;
+                };
+
+                reader.onreadingerror = () => {
+                    showToast('❌ Error al leer el tag', 'error');
+                    btn.classList.remove('active');
+                    btn.innerHTML = '<span>📡 SCAN</span>';
+                    btn.disabled = false;
+                };
+            } catch (error) {
+                const btn = document.getElementById('btn-scan');
+                btn.classList.remove('active');
+                btn.innerHTML = '<span>📡 SCAN</span>';
+                btn.disabled = false;
+
+                if (error.name === 'NotAllowedError') {
+                    showToast('🚫 Permiso denegado. Intenta de nuevo.', 'error');
+                } else if (error.name === 'SecurityError') {
+                    showToast('🔒 Necesita HTTPS para funcionar.', 'error');
+                } else {
+                    showToast('❌ Error: ' + error.message, 'error');
+                }
+            }
+        });
+
+        // WRITE Function
+        document.getElementById('btn-write').addEventListener('click', async () => {
+            if (!nfcSupported) return;
+
+            const content = document.getElementById('write-content').value.trim();
+            const type = document.getElementById('write-type').value;
+
+            if (!content) {
+                showToast('⚠️ Ingresa contenido para escribir', 'error');
+                return;
+            }
+
+            try {
+                const btn = document.getElementById('btn-write');
+                btn.classList.add('active');
+                btn.innerHTML = '<div class="spinner"></div> Acerca el tag...';
+                btn.disabled = true;
+
+                // Animate tag
+                if (tag) {
+                    tag.rotation.z += Math.PI * 2;
+                }
+
+                const reader = new NDEFReader();
+                const record = { recordType: type, data: content };
+
+                await reader.write({ records: [record] });
+
+                showToast('🎉 ¡Datos escritos correctamente!', 'success');
+                document.getElementById('write-content').value = '';
+
+                btn.classList.remove('active');
+                btn.innerHTML = '<span>✨ WRITE</span>';
+                btn.disabled = false;
+            } catch (error) {
+                const btn = document.getElementById('btn-write');
+                btn.classList.remove('active');
+                btn.innerHTML = '<span>✨ WRITE</span>';
+                btn.disabled = false;
+
+                if (error.name === 'NotAllowedError') {
+                    showToast('🚫 Permiso denegado. Intenta de nuevo.', 'error');
+                } else if (error.name === 'SecurityError') {
+                    showToast('🔒 Necesita HTTPS para funcionar.', 'error');
+                } else {
+                    showToast('❌ Error: ' + error.message, 'error');
+                }
+            }
+        });
+    </script>
+</body>
+</html>
